@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>碰数游戏 · 单文件无遮罩版</title>
+<style>
+  :root{
+    --bg: #0f1220;
+    --panel: rgba(255,255,255,0.09);
+    --stroke: rgba(255,255,255,0.12);
+    --text: #e9ecf1;
+    --muted: #a5acc1;
+    --accent: #7c4dff;
+    --accent-2: #00e0ff;
+    --good: #19d27d;
+    --shadow: 0 10px 25px rgba(0,0,0,0.25), 0 4px 10px rgba(0,0,0,0.25);
+    --radius: 14px;
+    --chip-radius: 12px;
+    --anim: 180ms;
+  }
+  html,body{
+    height:100%; margin:0;
+    background:
+      radial-gradient(1200px 600px at 20% 0%, #1a1d2e 0%, #0f1220 60%),
+      linear-gradient(180deg, #0d1020, #0f1220);
+    color:var(--text);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, "PingFang SC","Microsoft YaHei", Inter, sans-serif;
+  }
+  .wrap{ min-height:100%; display:grid; grid-template-rows:auto 1fr auto }
+  .top{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px clamp(14px, 4vw, 28px);
+    border-bottom:1px solid var(--stroke);
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent);
+    gap:14px;
+  }
+  .brand{ display:flex; gap:12px; align-items:center; }
+  .logo{
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color:white; font-weight:800; padding:8px 12px; border-radius:10px; box-shadow: var(--shadow);
+  }
+  .title{ font-size:18px; font-weight:700 }
+  .muted{ color:var(--muted); font-size:12px }
+  .controls{
+    display:flex; gap:10px; align-items:center; flex-wrap: wrap;
+  }
+  .field{ display:flex; align-items:center; gap:6px; background: rgba(255,255,255,0.06); padding:6px 10px; border-radius:10px; border:1px solid var(--stroke); }
+  .field label{ font-size:12px; color:#c9cfe2 }
+  .field input{
+    width:70px; appearance:none; border:none; outline:none;
+    border-radius:8px; padding:6px 8px; background: rgba(255,255,255,0.06); color: var(--text);
+    border:1px solid var(--stroke); font-weight:700; text-align:center;
+  }
+  button.btn{
+    appearance:none; border:none; border-radius:10px; padding:9px 14px; font-weight:700; cursor:pointer;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:white; box-shadow: var(--shadow);
+    transition: transform .06s ease, filter .2s ease, opacity .2s ease;
+  }
+  .btn.secondary{ background: rgba(255,255,255,0.08); color:var(--text) }
+  .btn:active{ transform: translateY(1px) scale(.99) }
+  .status{
+    margin-left: 8px; font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid var(--stroke);
+    background: rgba(255,255,255,0.06); color:#cfe8ff;
+  }
+
+  .board{
+    display:grid; gap: 16px; padding: clamp(12px, 4vw, 24px);
+    grid-auto-rows: minmax(80px, auto);
+  }
+  .player{
+    background: var(--panel); border:1px solid var(--stroke);
+    border-radius: var(--radius); padding: 12px; box-shadow: var(--shadow);
+    display:grid; grid-template-columns: 120px 1fr auto; gap:12px; align-items:center;
+  }
+  .player.you{ border-color: rgba(0,224,255,0.45); box-shadow: 0 0 0 1px rgba(0,224,255,0.22), var(--shadow) }
+  .pname{ font-weight:800 }
+  .pnote{ color:var(--muted); font-size:12px }
+  .chips{ display:flex; flex-wrap:wrap; gap: 10px }
+  .chip{
+    position:relative;
+    padding: 8px 12px; border-radius: var(--chip-radius);
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+    border: 1px solid var(--stroke);
+    font-weight:800; color: #e8ebf5; user-select: none;
+    transition: transform var(--anim) ease, box-shadow var(--anim) ease, border-color var(--anim) ease;
+  }
+  .chip.me{ box-shadow: 0 10px 25px rgba(0,224,255,0.15); }
+  .chip.pickable{ cursor:pointer }
+  .chip.pickable:hover{ transform: translateY(-2px); box-shadow: 0 12px 28px rgba(124,77,255,0.22) }
+  .chip.selected{ border-color: #00e0ff; box-shadow: 0 0 0 2px rgba(0,224,255,0.4), 0 10px 22px rgba(0,224,255,0.18) }
+  .row-right{ display:flex; gap:8px; align-items:center; white-space:nowrap; }
+  .turn-tag{
+    font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid var(--stroke);
+    background: rgba(255,255,255,0.06);
+  }
+  .turn-tag.live{ border-color: rgba(124,77,255,0.5); color:#d9d0ff }
+  .turn-tag.win{ border-color: rgba(25,210,125,0.6); color:#cbffe9; background: rgba(25,210,125,0.12) }
+
+  .canvas{ position: fixed; inset: 0; pointer-events: none; }
+  .fly{
+    position: fixed; left: 0; top: 0; transform: translate(var(--x), var(--y));
+    padding: 6px 10px; border-radius: 10px; background: #1f2b3a; border: 1px solid #2d3a4a; color:#cfe8ff;
+    font-weight:800; box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+    transition: transform 320ms cubic-bezier(.18,.8,.2,1), opacity 320ms ease;
+    z-index: 1000;
+  }
+  .bounce{ animation: bounce 220ms ease-out }
+  @keyframes bounce{
+    0%{ transform: translate(var(--x), var(--y)) scale(1) }
+    50%{ transform: translate(var(--x), var(--y)) scale(1.12) }
+    100%{ transform: translate(var(--x), var(--y)) scale(1) }
+  }
+
+  @media (max-width: 720px){
+    .player{ grid-template-columns: 1fr; }
+    .chips{ gap:8px }
+    .pname{ font-size:14px }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <div class="logo">碰数</div>
+      <div>
+        <div class="title">多人回合 · 取模 10</div>
+        <div class="muted">自己的一个数字 + 他人的一个数字，结果对 10 取模。出现 10 或取模后 0 即胜。</div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="field">
+        <label for="n">玩家 n</label>
+        <input id="n" type="number" min="2" max="12" value="4" />
+      </div>
+      <div class="field">
+        <label for="m">每人 m</label>
+        <input id="m" type="number" min="1" max="12" value="4" />
+      </div>
+      <button class="btn" id="start">开始/新对局</button>
+      <span class="status" id="status">准备就绪</span>
+    </div>
+  </div>
+
+  <canvas class="canvas" id="canvas"></canvas>
+  <div id="board" class="board" role="application" aria-label="碰数游戏棋盘"></div>
+</div>
+
+<script>
+(function(){
+  // 工具
+  const qs = s => document.querySelector(s);
+  const qsa = s => [...document.querySelectorAll(s)];
+  const clamp = (x,a,b)=> Math.max(a, Math.min(b,x));
+  const wait = ms => new Promise(res=> setTimeout(res, ms));
+
+  // 状态
+  let N=4, M=4, turn=0, players=[], running=false, humanIndex=0;
+  const MOD = 10;
+
+  const boardEl = qs('#board');
+  const canvas = qs('#canvas');
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  function setStatus(text){ qs('#status').textContent = text; }
+
+  // 初始化玩家
+  function makePlayers(){
+    players = [];
+    for(let i=0;i<N;i++){
+      players.push({
+        id: i,
+        name: i===humanIndex ? '你' : `AI-${i+1}`,
+        isHuman: i===humanIndex,
+        nums: Array.from({length:M}, ()=> 1),
+      });
+    }
+  }
+
+  // 渲染
+  function playerRow(p){
+    const row = document.createElement('div');
+    row.className = 'player' + (p.isHuman ? ' you' : '');
+    row.dataset.pid = p.id;
+
+    const left = document.createElement('div');
+    const pn = document.createElement('div'); pn.className = 'pname'; pn.textContent = p.name;
+    const pt = document.createElement('div'); pt.className = 'pnote muted'; pt.textContent = p.isHuman ? '你的数字' : 'AI 自动出手';
+    left.appendChild(pn); left.appendChild(pt);
+
+    const chips = document.createElement('div'); chips.className = 'chips';
+    p.nums.forEach((v,idx)=>{
+      const c = document.createElement('div');
+      c.className = 'chip' + (p.isHuman ? ' me' : '');
+      c.dataset.pid = p.id; c.dataset.idx = idx;
+      c.textContent = v;
+      chips.appendChild(c);
+    });
+
+    const right = document.createElement('div'); right.className = 'row-right';
+    const tag = document.createElement('div'); tag.className = 'turn-tag'; tag.id = `turn-${p.id}`;
+    tag.textContent = '等待中'; right.appendChild(tag);
+
+    row.appendChild(left); row.appendChild(chips); row.appendChild(right);
+    return row;
+  }
+
+  function render(){
+    boardEl.innerHTML = '';
+    players.forEach(p=> boardEl.appendChild(playerRow(p)));
+    bindHumanClicks();
+    updateTurnTag();
+  }
+
+  function updateNumbers(){
+    players.forEach(p=>{
+      const row = boardEl.querySelector(`.player[data-pid="${p.id}"]`);
+      const chips = row.querySelector('.chips');
+      [...chips.children].forEach((el,i)=> el.textContent = p.nums[i]);
+    });
+  }
+
+  function updateTurnTag(){
+    players.forEach(p=>{
+      const el = qs(`#turn-${p.id}`);
+      el.classList.remove('live','win');
+      el.textContent = (turn%N===p.id) ? '出手中' : '等待中';
+      if (turn%N===p.id) el.classList.add('live');
+    });
+    const who = turn%N===humanIndex ? '你的回合' : `${players[turn%N].name} 的回合`;
+    setStatus(who);
+  }
+
+  // 规则
+  function addMod10(a,b){
+    const sum = a + b;
+    const mod = sum % MOD;
+    const win = (sum === 10) || (mod === 0);
+    return { sum, mod, win, tenWin: sum === 10 };
+  }
+  function checkWinner(pid){
+    return players[pid].nums.some(x=> x === 0);
+  }
+
+  // 动画
+  function chipRect(pid, idx){
+    const row = boardEl.querySelector(`.player[data-pid="${pid}"]`);
+    const chip = row?.querySelector(`.chip[data-idx="${idx}"]`);
+    if (!chip) return null;
+    const r = chip.getBoundingClientRect();
+    return { x: r.left + r.width/2, y: r.top + r.height/2 };
+  }
+  function drawCurveOnce(a,b){
+    resizeCanvas();
+    const t0 = performance.now(), dur = 360;
+    const draw = (t)=>{
+      const k = Math.min(1, (t - t0)/dur);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.lineWidth = 2;
+      const grad = ctx.createLinearGradient(a.x,a.y,b.x,b.y);
+      grad.addColorStop(0, 'rgba(124,77,255,0.0)');
+      grad.addColorStop(0.2, 'rgba(124,77,255,0.55)');
+      grad.addColorStop(0.8, 'rgba(0,224,255,0.55)');
+      grad.addColorStop(1, 'rgba(0,224,255,0.0)');
+      ctx.strokeStyle = grad;
+      ctx.beginPath();
+      const mx = (a.x + b.x)/2, my = Math.min(a.y, b.y) - 60;
+      const steps = 24;
+      ctx.moveTo(a.x, a.y);
+      for(let i=1;i<=Math.floor(steps*k);i++){
+        const t1 = i/steps;
+        const x = (1-t1)*(1-t1)*a.x + 2*(1-t1)*t1*mx + t1*t1*b.x;
+        const y = (1-t1)*(1-t1)*a.y + 2*(1-t1)*t1*my + t1*t1*b.y;
+        ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+      if (k<1) requestAnimationFrame(draw);
+      else setTimeout(()=> ctx.clearRect(0,0,canvas.width,canvas.height), 180);
+    };
+    requestAnimationFrame(draw);
+  }
+  function flyAdd(from, to, text){
+    drawCurveOnce(from, to);
+    const fly = document.createElement('div');
+    fly.className = 'fly';
+    fly.textContent = `+${text}`;
+    fly.style.setProperty('--x', (from.x-24)+'px');
+    fly.style.setProperty('--y', (from.y-14)+'px');
+    document.body.appendChild(fly);
+    requestAnimationFrame(()=>{
+      fly.style.setProperty('--x', (to.x-24)+'px');
+      fly.style.setProperty('--y', (to.y-14)+'px');
+      fly.style.opacity = '0.85';
+    });
+    setTimeout(()=> fly.remove(), 360);
+  }
+  function bounceChip(pid, idx){
+    const row = boardEl.querySelector(`.player[data-pid="${pid}"]`);
+    const chip = row?.querySelector(`.chip[data-idx="${idx}"]`);
+    if (chip){
+      chip.classList.add('selected');
+      chip.style.animation = 'bounce 220ms ease-out';
+      setTimeout(()=> {
+        chip.style.animation = '';
+        chip.classList.remove('selected');
+      }, 240);
+    }
+  }
+
+  // 人类操作
+  let pickMine = null;
+  function bindHumanClicks(){
+    qsa('.chip').forEach(el=>{
+      const pid = Number(el.dataset.pid);
+      el.classList.add('pickable');
+      if (pid === humanIndex){
+        el.addEventListener('click', onPickMine);
+      } else {
+        el.addEventListener('click', onPickOther);
+      }
+    });
+  }
+  function clearHumanClicks(){
+    qsa('.chip').forEach(el=>{
+      el.classList.remove('pickable','selected');
+      el.replaceWith(el.cloneNode(true)); // 移除事件
+    });
+  }
+  function onPickMine(e){
+    if (!running || (turn%N)!==humanIndex) return;
+    const el = e.currentTarget;
+    qsa(`.player[data-pid="${humanIndex}"] .chip`).forEach(c=> c.classList.remove('selected'));
+    el.classList.add('selected');
+    pickMine = { pid: humanIndex, idx: Number(el.dataset.idx) };
+  }
+  function onPickOther(e){
+    if (!running || (turn%N)!==humanIndex || !pickMine) return;
+    const el = e.currentTarget;
+    const pid = Number(el.dataset.pid);
+    if (pid === humanIndex) return; // 必须选他人
+    const idx = Number(el.dataset.idx);
+    actTurn(pickMine.pid, pickMine.idx, pid, idx, true);
+    pickMine = null;
+  }
+
+  // AI 策略
+ function aiChoose(pid){
+  const me = players[pid];
+  let best = null;
+
+  for (let i=0; i<M; i++){
+    for (let op=0; op<N; op++){
+      if (op === pid) continue;
+      for (let j=0; j<M; j++){
+        const {sum,mod,win,tenWin} = addMod10(me.nums[i], players[op].nums[j]);
+
+        // 模拟执行后的局面
+        const backupNums = players.map(p => [...p.nums]);
+        players[pid].nums[i] = mod; // 改变自己的数字
+        // 这里不改对方的数字，因为规则里对方数字不变
+
+        // 检查别人是否有必胜机会
+        let othersCanWin = false;
+        for (let other=0; other<N; other++){
+          if (other === pid) continue;
+          for (let mi=0; mi<M; mi++){
+            for (let oi=0; oi<M; oi++){
+              if (oi === mi && other === pid) continue;
+              const {win:owin} = addMod10(players[other].nums[mi], players[pid].nums[oi] ?? 0);
+              if (owin) { othersCanWin = true; break; }
+            }
+            if (othersCanWin) break;
+          }
+          if (othersCanWin) break;
+        }
+
+        // 恢复局面
+        players.forEach((p,idx)=> p.nums = backupNums[idx]);
+
+        // 评分
+        let score;
+        if (win){
+          score = 1e6 + (tenWin?50:0); // 自己能赢最高
+        } else if (othersCanWin){
+          score = -1e6; // 会让别人赢，极低分
+        } else {
+          const dist = (10 - mod) % 10;
+          score = 1000 - dist + (9 - mod)*0.1;
+        }
+
+        if (!best || score > best.score){
+          best = { iMine:i, otherPid:op, jOther:j, score, win, tenWin };
+        }
+      }
+    }
+  }
+  return best;
+}
+
+  // 回合执行
+  async function actTurn(mPid, mIdx, oPid, oIdx, human=false){
+    if (!running) return;
+    const from = chipRect(oPid, oIdx);
+    const to = chipRect(mPid, mIdx);
+    if (from && to) flyAdd(from, to, players[oPid].nums[oIdx]);
+
+    const a = players[mPid].nums[mIdx];
+    const b = players[oPid].nums[oIdx];
+    const { sum, mod, win, tenWin } = addMod10(a,b);
+
+    await wait(220);
+    players[mPid].nums[mIdx] = mod;
+    updateNumbers();
+    bounceChip(mPid, mIdx);
+
+    if (win){
+      running = false;
+      const tag = qs(`#turn-${mPid}`); if (tag){ tag.textContent = '胜利'; tag.classList.add('win'); }
+      setStatus(`${players[mPid].name} 获胜：` + (tenWin ? '恰好凑成 10' : '取模后为 0'));
+      return;
+    }
+
+    turn++;
+    updateTurnTag();
+
+    await wait(320);
+    if (running && (turn%N)!==humanIndex){
+      const pid = turn%N;
+      const mv = aiChoose(pid);
+      if (mv){
+        await actTurn(pid, mv.iMine, mv.otherPid, mv.jOther, false);
+      } else {
+        // 理论上不会发生
+        turn++; updateTurnTag();
+      }
+    }
+  }
+
+  // 对局控制
+  function startGame(){
+    N = clamp(parseInt(qs('#n').value || '4', 10), 2, 12);
+    M = clamp(parseInt(qs('#m').value || '4', 10), 1, 12);
+    turn = 0; running = true;
+    setStatus('对局开始');
+    makePlayers();
+    render();
+    // 若先手不是人类，让 AI 连动直到轮到你（通常只走一步）
+    if ((turn%N)!==humanIndex){
+      (async()=>{
+        await wait(360);
+        const pid = turn%N;
+        const mv = aiChoose(pid);
+        if (mv) await actTurn(pid, mv.iMine, mv.otherPid, mv.jOther, false);
+      })();
+    }
+  }
+
+  // 事件
+  qs('#start').addEventListener('click', ()=>{
+    clearHumanClicks();
+    startGame();
+  });
+
+  // 初始进入：直接开始，无遮罩
+  resizeCanvas();
+  startGame();
+})();
+</script>
+</body>
+</html>
