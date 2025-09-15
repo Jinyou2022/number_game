@@ -1,0 +1,28 @@
+<!-- 起始界面遮罩 -->
+<div id="startScreen" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;background:#000;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+  <img src="start.jpg" alt="start" style="position:absolute;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:1;">
+  <div style="position:relative;z-index:2;color:#fff;text-align:center;">
+    <h1 style="font-size:2.8rem;font-weight:bold;margin-bottom:2rem;text-shadow:0 2px 16px #000;">欢迎来到中国象棋介绍</h1>
+    <h2 id="startSubtitle" style="font-size:1.5rem;font-weight:normal;opacity:0;filter:blur(8px);transition:opacity 1.2s, filter 1.2s;margin-top:2rem;">点击任意键进入展示</h2>
+  </div>
+</div>
+<script>
+// 起始界面逻辑
+window.addEventListener('DOMContentLoaded', function() {
+  var startScreen = document.getElementById('startScreen');
+  var subtitle = document.getElementById('startSubtitle');
+  setTimeout(function() {
+    subtitle.style.opacity = '1';
+    subtitle.style.filter = 'blur(0)';
+  }, 3000);
+  function hideStartScreen() {
+    if (startScreen.style.display !== 'none') {
+      startScreen.style.display = 'none';
+      document.removeEventListener('keydown', hideStartScreen);
+      document.removeEventListener('click', hideStartScreen);
+    }
+  }
+  document.addEventListener('keydown', hideStartScreen);
+  document.addEventListener('click', hideStartScreen);
+});
+</script>
